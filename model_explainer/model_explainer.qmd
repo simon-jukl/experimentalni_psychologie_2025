@@ -135,7 +135,7 @@ Modely budou pomocí relevantních kritérií porovnány a bude vybrát model, k
 
 -   `tempo:interval_length` je interakce, která říká, že efekt délky intervalu je různý pro různá tempa. Tedy lidé budou odhadovat délku jinak, pokud jim během intervalu bude hrát tempo o různých frekvencích.
 
--   `group` je hlavní efekt skupiny. Interpretace tohoto efektu je zavádějící, protože zde panuje vysoká korelace s tempem (dle simulací cca 0,8). Kvůli značné kolinearitě s tempem navrhuji proměnou nezařadit.
+-   `group` je hlavní efekt skupiny. Interpretace tohoto efektu je zavádějící, protože zde skupina vysoce koreluje s tempem. Kvůli značné kolinearitě s tempem navrhuji proměnou nezařadit.
 
 -   `tempo:group` je interakce zkoumající, zda je efekt tempa jiný v závislosti na skupině. Tato interakce je definována jen na dvou překrytích mezi skupinami (pro ostatní kombinace tempa a skupiny nejsou z definice našeho experimentu data, ze kterých by model mohl vycházet) a není tedy jasné, jak ji interpretovat. Není tedy též zařazena do modelů.
 
