@@ -106,6 +106,12 @@ data_sim |>
   geom_smooth(aes(group = group), method = "lm") +
   geom_hline(yintercept = interval_levels, linetype = 2, color = "grey")
 
+data_test |> 
+  ggplot(aes(interval_length, response)) +
+  geom_smooth(aes(group = factor(tempo), color = tempo), method = "lm", se = FALSE, alpha = 0.3) +
+  geom_jitter(aes(color = tempo), width = 0.1, height = 0, alpha = 0.5) +
+  geom_hline(yintercept = interval_levels, linetype = 2, color = "grey")
+
 
 # model fit on simulated data
 fit1_log_sim <-
