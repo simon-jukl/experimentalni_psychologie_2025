@@ -102,8 +102,8 @@ data_sim
 
 data_sim |> 
   ggplot(aes(interval_length, response)) +
-  geom_jitter(aes(color = tempo), width = 0.1, height = 0, alpha = 0.3) +
   geom_smooth(aes(group = group), method = "lm") +
+  geom_jitter(aes(color = tempo), width = 0.1, height = 0, alpha = 0.3) +
   geom_hline(yintercept = interval_levels, linetype = 2, color = "grey")
 
 data_test |> 

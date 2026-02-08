@@ -1,0 +1,134 @@
+# setup -------------------------------------------------------------------
+
+
+library(tidyverse)
+# library(here)
+# library(brms)
+
+
+theme_set(theme_bw())
+
+# data_test <- read_rds(here("data_cleaning_test/data_clean_test.rds"))
+
+
+n_participants_per_group <- 20
+n_repeats <- 3
+
+
+tempo_levels_slow <- c(1.7, 3.4, 5.1, 6.8)
+tempo_levels_normal <- c(6.8, 8.5, 10.2, 11.9)
+tempo_levels_fast <- c(11.9, 13.6, 15.3, 17.0)
+
+tempo_groups <- list(
+  slow = tempo_levels_slow,
+  normal = tempo_levels_normal,
+  fast = tempo_levels_fast
+)
+
+
+interval_levels <- c(1.177, 1.765, 2.353, 2.942, 3.530, 4.706)
+
+
+# function to create all trial combinations (repeated) for all participants in one group
+create_trials_group <- function(group_name, tempo_levels) {
+  expand_grid(
+    participant_within_group = 1:n_participants_per_group,
+    tempo = tempo_levels,
+    interval_length = interval_levels,
+    repeat_trial = 1:n_repeats
+  ) |> 
+    mutate(
+      group = group_name,
+      # makes id group-flexible
+      participant = (match(group_name, names(tempo_groups)) - 1) * n_participants_per_group + participant_within_group
+    ) |> 
+    # removes temporary columns
+    select(-participant_within_group, -repeat_trial)
+}
+
+
+# creates all trials for all 3 groups
+trials <- map2(names(tempo_groups), tempo_groups, .f = create_trials_group) |> 
+  list_rbind() |> 
+  relocate(participant, group)
+
+n_participants <- length(unique(trials$participant))
+
+
+simulate_prior_predictive <- function(trials) {
+  
+  # sample priors for fixed effects
+  fe <- tibble(
+    b_Intercept = rnorm(1, 0, 0.05),
+    b_interval = rnorm(1, 1, 0.02),
+    b_tempo = rnorm(1, 0, 0.01),
+    b_interaction = rnorm(1, 0, 0.005)
+  )
+  
+  re_sd <- tibble(
+    # sample priors for random effect sds
+    sd_intercept = abs(rnorm(1, 0, 0.03)),
+    sd_interval = abs(rnorm(1, 0, 0.03)),
+    sd_tempo = abs(rnorm(1, 0, 0.03))
+  )
+  
+  L <- nimble::rlkj_corr_cholesky(n = 1, eta = 4, p = 3)
+  R <- L %*% t(L)
+  
+  covmat <- diag(re_sd) %*% R %*% diag(re_sd)
+  
+  re_mat <- MASS::mvrnorm(
+    n = n_participants,
+    mu = c(0, 0, 0),
+    Sigma = covmat
+  )
+    
+  re <- tibble(
+    participant = unique(trials$participant),
+    
+    # sample random effects
+    re_intercept = re_mat[, 1],
+    re_interval = re_mat[, 2],
+    re_tempo = re_mat[, 2]
+  )
+  
+  # sample sigma priors
+  sd <- tibble(
+    sigma_Intercept = rnorm(1, -2, 0.1)
+  )
+  
+  # join random effects and compute mu & sigma
+  trials |> 
+    bind_cols(fe, sd) |> 
+    left_join(re, join_by(participant)) |> 
+    mutate(
+      mu = b_Intercept + re_intercept +
+        (b_interval + re_interval) * log(interval_length) +
+        (b_tempo + re_tempo) * tempo +
+        b_interaction * tempo * log(interval_length),
+      sigma = exp(sigma_Intercept),
+      response = rlnorm(n(), mean = mu, sd = sigma)
+    )
+}
+
+
+# simulate samples
+n_sim <- 500
+prior_predictive_samples <- map(1:n_sim, ~simulate_prior_predictive(trials)) |> 
+  set_names(1:n_sim) |> 
+  list_rbind(names_to = "sample")
+
+
+prior_predictive_samples |> 
+  filter(sample %in% sample(1:n_sim, 20)) |> 
+  ggplot() +
+  geom_density(aes(response, group = sample), color = "lightblue") +
+  geom_vline(aes(xintercept = interval_length)) +
+  facet_wrap(vars(interval_length), axes = "all_x")
+
+
+prior_predictive_samples |> 
+  slice_sample(n = 5000) |>  
+  ggplot() +
+  geom_point(aes(interval_length, response, group = sample), color = "lightblue") +
+  geom_hline(aes(yintercept = interval_length), linetype = 2, color = "grey")
